@@ -1,4 +1,4 @@
-# This is my package xero-laravel
+# 💸 Xero Laravel for Sprint Digital
 
 [![Latest Version on Packagist](https://img.shields.io/packagist/v/sprint-digital/xero-laravel.svg?style=flat-square)](https://packagist.org/packages/sprint-digital/xero-laravel)
 [![GitHub Tests Action Status](https://img.shields.io/github/actions/workflow/status/sprint-digital/xero-laravel/run-tests.yml?branch=main&label=tests&style=flat-square)](https://github.com/sprint-digital/xero-laravel/actions?query=workflow%3Arun-tests+branch%3Amain)

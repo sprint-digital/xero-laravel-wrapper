@@ -8,10 +8,15 @@ return new class extends Migration
 {
     public function up()
     {
-        Schema::create('xero_laravel_table', function (Blueprint $table) {
+        Schema::create('xero_tokens', function (Blueprint $table) {
             $table->id();
 
-            // add fields
+            $table->text('tenant_id');
+            $table->text('id_token');
+            $table->text('access_token');
+            $table->text('refresh_token');
+            $table->bigInteger('expires_in');
+            $table->string('token_type');
 
             $table->timestamps();
         });

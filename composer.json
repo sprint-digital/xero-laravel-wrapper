@@ -1,6 +1,6 @@
 {
     "name": "sprint-digital/xero-laravel",
-    "description": "This is my package xero-laravel",
+    "description": "💸 Access the Xero accounting system using an Eloquent-like syntax",
     "keywords": [
         "sprint-digital",
         "laravel",
