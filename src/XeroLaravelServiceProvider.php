@@ -19,7 +19,7 @@ class XeroLaravelServiceProvider extends PackageServiceProvider
             ->name('xero-laravel')
             ->hasConfigFile()
             ->hasViews()
-            ->hasMigration('create_xero-laravel_table')
+            ->hasMigration('create_xero_tokens_table')
             ->hasCommand(XeroLaravelCommand::class);
     }
 }
