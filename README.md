@@ -1,8 +1,6 @@
 # 💸 Xero Laravel for Sprint Digital
 
 [![Latest Version on Packagist](https://img.shields.io/packagist/v/sprint-digital/xero-laravel.svg?style=flat-square)](https://packagist.org/packages/sprint-digital/xero-laravel)
-[![GitHub Tests Action Status](https://img.shields.io/github/actions/workflow/status/sprint-digital/xero-laravel/run-tests.yml?branch=main&label=tests&style=flat-square)](https://github.com/sprint-digital/xero-laravel/actions?query=workflow%3Arun-tests+branch%3Amain)
-[![GitHub Code Style Action Status](https://img.shields.io/github/actions/workflow/status/sprint-digital/xero-laravel/fix-php-code-style-issues.yml?branch=main&label=code%20style&style=flat-square)](https://github.com/sprint-digital/xero-laravel/actions?query=workflow%3A"Fix+PHP+code+style+issues"+branch%3Amain)
 [![Total Downloads](https://img.shields.io/packagist/dt/sprint-digital/xero-laravel.svg?style=flat-square)](https://packagist.org/packages/sprint-digital/xero-laravel)
 
 This is where your description should go. Limit it to a paragraph or two. Consider adding a small example.
@@ -32,9 +30,8 @@ variables to your `.env` file.
 ```
 XERO_CLIENT_ID=XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 XERO_CLIENT_SECRET=XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-XERO_REDIRECT_URI=https://example.com/xero-callback
+XERO_REDIRECT_URI=https://example.com/xero/callback
 ```
-
 
 In `web.php` add:
 
@@ -54,6 +51,8 @@ Xero's documentation provides a full [list of available scopes](https://develope
 
 
 ## Usage
+
+READ!!! the `XeroController.php`
 
 To use Xero Laravel, you first need to get retrieve your user's stored access token and tenant id. You can use these
 to create a new `XeroApp` object which represents your Xero application.
