@@ -1,0 +1,84 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\XeroToken;
+use Illuminate\Http\Request;
+use League\OAuth2\Client\Token\AccessToken;
+use Sprintdigital\XeroLaravel\OAuth2;
+
+class XeroController extends Controller
+{
+    /**
+     * Get an instance of the OAuth2 client.
+     * This will use the 'default' app configuration found in your 'config/xero-laravel.php` file.
+     * If you wish to use an alternative app configuration you can specify its key (e.g. `new OAuth2('other_app')`).
+     *
+     * @return OAuth2
+     */
+    private function getOAuth2()
+    {
+        return new OAuth2();
+    }
+
+    /**
+     * Step 1 - Redirect the user to the Xero authorization URL.
+     *
+     * @return \Illuminate\Http\RedirectResponse
+     */
+    public function redirectUserToXero()
+    {
+        return $this->getOAuth2()->getAuthorizationRedirect();
+    }
+
+    /**
+     * Step 2 - Handle the callback from Xero.
+     * Get an access token from the response, and store it in the database.
+     * Get Tenants as well.
+     *
+     * @param Request $request
+     */
+    public function handleCallbackFromXero(Request $request)
+    {
+        $onlineXeroToken = $this->getOAuth2()->getAccessTokenFromXeroRequest($request);
+
+        $tenants = $this->getOAuth2()->getTenants($onlineXeroToken);
+        $selectedTenant = $tenants[0] ?? null; // For example purposes, we're pretending the user selected the first tenant.
+
+        XeroToken::firstOrCreate(['id' => 1], [
+            'access_token' => $onlineXeroToken->getToken(),
+            'refresh_token' => $onlineXeroToken->getRefreshToken(),
+            'id_token' => $onlineXeroToken->getValues()['id_token'],
+            'token_type' => $onlineXeroToken->getValues()['token_type'],
+            'scope' => $onlineXeroToken->getValues()['scope'] ?? null,
+            'expires_at' => $onlineXeroToken->getExpires(),
+            'tenant_id' => $selectedTenant->tenantId,
+            'xero_token_json' => json_encode($onlineXeroToken),
+        ]);
+    }
+
+    /**
+     * Step 3 - Refresh the access token if necessary.
+     *
+     * @return AccessToken
+     */
+    public function refreshAccessTokenIfNecessary()
+    {
+        $xeroToken = XeroToken::find(1);
+
+        if ($xeroToken->isExpired == false) {
+            $accessToken = new AccessToken((array) json_decode($xeroToken->xero_token_json));
+            $onlineXeroToken = $this->getOAuth2()->refreshAccessToken($accessToken);
+
+            XeroToken::updateOrCreate(['id' => 1], [
+                'access_token' => $onlineXeroToken->getToken(),
+                'refresh_token' => $onlineXeroToken->getRefreshToken(),
+                'id_token' => $onlineXeroToken->getValues()['id_token'],
+                'token_type' => $onlineXeroToken->getValues()['token_type'],
+                'scope' => $onlineXeroToken->getValues()['scope'] ?? null,
+                'expires_at' => $onlineXeroToken->getExpires(),
+                'xero_token_json' => json_encode($onlineXeroToken),
+            ]);
+        }
+    }
+}

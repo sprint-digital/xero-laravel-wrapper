@@ -11,12 +11,13 @@ return new class extends Migration
         Schema::create('xero_tokens', function (Blueprint $table) {
             $table->id();
 
-            $table->text('tenant_id');
-            $table->text('id_token');
-            $table->text('access_token');
-            $table->text('refresh_token');
-            $table->bigInteger('expires_in');
-            $table->string('token_type');
+            $table->text('tenant_id')->nullable();
+            $table->text('id_token')->nullable();
+            $table->text('access_token')->nullable();
+            $table->text('refresh_token')->nullable();
+            $table->bigInteger('expires_at')->nullable();
+            $table->string('token_type')->nullable();
+            $table->json('xero_token_json')->nullable();
 
             $table->timestamps();
         });

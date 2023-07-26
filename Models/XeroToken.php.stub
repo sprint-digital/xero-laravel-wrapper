@@ -1,0 +1,24 @@
+<?php
+
+namespace App\Models;
+
+use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Model;
+
+class XeroToken extends Model
+{
+    protected $fillable = [
+        'tenant_id',
+        'id_token',
+        'access_token',
+        'refresh_token',
+        'expires_at',
+        'token_type',
+        'xero_token_json',
+    ];
+
+    public function getIsExpiredAttribute()
+    {
+        return Carbon::createFromTimestamp($this->expires_at)->isPast();
+    }
+}
