@@ -8,7 +8,7 @@ return new class extends Migration
 {
     public function up()
     {
-        if (Schema::hasTable('xero_tokens')) {
+        if (!Schema::hasTable('xero_tokens')) {
             Schema::create('xero_tokens', function (Blueprint $table) {
                 $table->id();
 
