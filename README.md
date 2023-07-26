@@ -36,6 +36,8 @@ XERO_REDIRECT_URI=https://example.com/xero/callback
 In `web.php` add:
 
 ```
+use App\Http\Controllers\XeroController;
+
 Route::get('/xero/redirect', [XeroController::class, 'redirectUserToXero'])->name('xero.redirect');
 Route::get('/xero/callback', [XeroController::class, 'handleCallbackFromXero'])->name('xero.callback');
 Route::get('/xero/refresh', [XeroController::class, 'refreshAccessTokenIfNecessary'])->name('xero.refresh');
