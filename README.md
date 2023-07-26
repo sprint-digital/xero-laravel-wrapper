@@ -18,32 +18,12 @@ composer require sprint-digital/xero-laravel
 You can publish and run the migrations with:
 
 ```bash
-php artisan vendor:publish --tag="xero-laravel-migrations"
+php artisan xero-laravel:install"
 php artisan migrate
 ```
 
-You can publish the config file with:
 
-```bash
-php artisan vendor:publish --tag="xero-laravel-config"
-```
-
-This is the contents of the published config file:
-
-```php
-return [
-    'apps' => [
-        'default' => [
-            'client_id'     => env('XERO_CLIENT_ID'),
-            'client_secret' => env('XERO_CLIENT_SECRET'),
-            'redirect_uri'  => env('XERO_REDIRECT_URI'),
-            'scope'         => 'openid email profile offline_access accounting.settings.read',
-        ],
-    ],
-];
-```
-
-## Usage
+## Setup
 
 If you only intend to use one Xero app, the standard configuration 
 file should be sufficient. All you will need to do is add the following 
@@ -55,73 +35,15 @@ XERO_CLIENT_SECRET=XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 XERO_REDIRECT_URI=https://example.com/xero-callback
 ```
 
-### OAuth 2.0 flow
 
-In order for users to make use of your Xero app, they must first give your app permission to access their Xero account.
-To do this, your web application must do the following.
+In `web.php` add:
 
-1. Redirect the user to the Xero authorization URL.
-2. Capture the response from Xero, and obtain an access token.
-3. Retrieve the list of tenants (typically Xero organisations), and let the user select one.
-4. Store the access token and selected tenant ID against the user's account for future use.
-5. Before using the access token, check if it has expired and refresh it if necessary.
-
-The controller below shows these steps in action.
-
-```php
-<?php
-use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use SprintDigital\XeroLaravel\OAuth2;
-use League\OAuth2\Client\Token\AccessToken;
-
-class XeroController extends Controller
-{
-    private function getOAuth2()
-    {
-        // This will use the 'default' app configuration found in your 'config/xero-laravel-lf.php` file.
-        // If you wish to use an alternative app configuration you can specify its key (e.g. `new OAuth2('other_app')`).
-        return new OAuth2();
-    }
-
-    public function redirectUserToXero()
-    {
-        // Step 1 - Redirect the user to the Xero authorization URL.
-        return $this->getOAuth2()->getAuthorizationRedirect();
-    }
-
-    public function handleCallbackFromXero(Request $request)
-    {
-        // Step 2 - Capture the response from Xero, and obtain an access token.
-        $accessToken = $this->getOAuth2()->getAccessTokenFromXeroRequest($request);
-        
-        // Step 3 - Retrieve the list of tenants (typically Xero organisations), and let the user select one.
-        $tenants = $this->getOAuth2()->getTenants($accessToken);
-        $selectedTenant = $tenants[0]; // For example purposes, we're pretending the user selected the first tenant.
-
-        // Step 4 - Store the access token and selected tenant ID against the user's account for future use.
-        // You can store these anyway you wish. For this example, we're storing them in the database using Eloquent.
-        $user = auth()->user();
-        $user->xero_access_token = json_encode($accessToken);
-        $user->tenant_id = $selectedTenant->tenantId;
-        $user->save();
-    }
-
-    public function refreshAccessTokenIfNecessary()
-    {
-        // Step 5 - Before using the access token, check if it has expired and refresh it if necessary.
-        $user = auth()->user();
-        $accessToken = new AccessToken(json_decode($user->xero_access_token));
-
-        if ($accessToken->hasExpired()) {
-            $accessToken = $this->getOAuth2()->refreshAccessToken($accessToken);
-
-            $user->xero_access_token = $accessToken;
-            $user->save();
-        }
-    }
-}
 ```
+Route::get('/xero/redirect', [XeroController::class, 'redirectUserToXero'])->name('xero.redirect');
+Route::get('/xero/callback', [XeroController::class, 'handleCallbackFromXero'])->name('xero.callback');
+Route::get('/xero/refresh', [XeroController::class, 'refreshAccessTokenIfNecessary'])->name('xero.refresh');
+```
+
 
 By default, only a limited number of scopes are defined in the configuration file (space separated). You will probably 
 want to add to the scopes depending on your application's intended purpose. For example adding the 
@@ -140,11 +62,11 @@ to create a new `XeroApp` object which represents your Xero application.
 use SprintDigital\XeroLaravel\XeroApp;
 use League\OAuth2\Client\Token\AccessToken;
 
-$user = auth()->user(); 
+$xeroToken = XeroToken::find(1);
 
 $xero = new XeroApp(
-            new AccessToken(json_decode($user->xero_oauth_2_access_token)),
-            $user->xero_tenant_id
+            new AccessToken((array) json_decode($xeroToken->xero_token_json)),
+            $xeroToken->tenant_id
         );
 ```
 
