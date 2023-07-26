@@ -16,7 +16,7 @@ composer require sprint-digital/xero-laravel
 You can publish and run the migrations with:
 
 ```bash
-php artisan xero-laravel:install"
+php artisan xero-laravel:install
 php artisan migrate
 ```
 
