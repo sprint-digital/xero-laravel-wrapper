@@ -43,16 +43,14 @@ Route::get('/xero/callback', [XeroController::class, 'handleCallbackFromXero'])-
 Route::get('/xero/refresh', [XeroController::class, 'refreshAccessTokenIfNecessary'])->name('xero.refresh');
 ```
 
-
-By default, only a limited number of scopes are defined in the configuration file (space separated). You will probably 
-want to add to the scopes depending on your application's intended purpose. For example adding the 
-`accounting.transactions` scope allows you to manage invoices, and adding the `accounting.contacts.read` allows you to 
-read contact information.
+You should protect these routes. 
 
 Xero's documentation provides a full [list of available scopes](https://developer.xero.com/documentation/oauth2/scopes).
 
 
 ## Usage
+
+Go to `{url}/xero/redirect` and your xero token will be saved to the database.
 
 READ!!! the `XeroController.php`
 

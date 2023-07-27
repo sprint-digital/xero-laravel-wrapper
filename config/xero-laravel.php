@@ -18,5 +18,7 @@ return [
             'redirect_uri'  => env('XERO_REDIRECT_URI'),
             'scope'         => 'openid email profile offline_access accounting.settings.read',
         ],
+        'invoice_model' => \App\Models\Invoice::class, // Change this to your Invoice model
+        'invoice_line_item_model' => \App\Models\InvoiceLineItem::class, // Change this to your Invoice Line Item model
     ],
 ];

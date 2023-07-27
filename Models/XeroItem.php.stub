@@ -1,0 +1,26 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
+
+class XeroItem extends Model
+{
+    use SoftDeletes;
+
+    protected $fillable = [
+        'xero_tenant_id',
+        'name',
+        'code',
+        'xero_item_id',
+        'description',
+        'purchase_account_code',
+        'purchase_price',
+        'sale_account_code',
+        'sale_price',
+        'payload',
+        'is_purchased',
+        'is_sold',
+    ];
+}

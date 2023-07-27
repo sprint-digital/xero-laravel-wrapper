@@ -1,0 +1,77 @@
+<?php
+
+namespace App\Console\Commands;
+
+use App\Models\XeroContact;
+use App\Services\Xero\XeroBaseService;
+use Illuminate\Console\Command;
+use XeroPHP\Models\Accounting\Contact;
+use XeroPHP\Models\Accounting\Phone;
+
+class PullXeroContacts extends Command
+{
+    /**
+     * The name and signature of the console command.
+     *
+     * @var string
+     */
+    protected $signature = 'xero:pull-contacts';
+
+    /**
+     * The console command description.
+     *
+     * @var string
+     */
+    protected $description = 'Pull Xero Contacts';
+
+    /**
+     * Create a new command instance.
+     *
+     * @return void
+     */
+    public function __construct()
+    {
+        parent::__construct();
+    }
+
+    /**
+     * Execute the console command.
+     */
+    public function handle()
+    {
+        $xeroService = new XeroBaseService();
+
+        $contacts = $xeroService->xero->load(Contact::class)->execute();
+
+        foreach ($contacts as $contact) {
+            $phone = collect($contact->getPhones())->where('PhoneType', Phone::PHONE_TYPE_MOBILE)->first();
+            $bankAccountDetails = $contact->getBankAccountDetails();
+            if (isset($bankAccountDetails)) {
+                if (strpos($bankAccountDetails, ' ') !== false) {
+                    $bankAccountDetails = explode(' ', $bankAccountDetails);
+                    $bankBsb = $bankAccountDetails[0] ?? null;
+                    $bankAccountNo = $bankAccountDetails[1] ?? null;
+                } else {
+                    $bankBsb = substr($bankAccountDetails, 0, 6);
+                    $bankAccountNo = substr($bankAccountDetails, 6);
+                }
+            }
+
+            XeroContact::updateOrCreate([
+                'xero_contact_id' => $contact->getContactID(),
+                'xero_tenant_id' => $xeroService->tenantId,
+            ], [
+                'name'  => $contact->getName(),
+                'first_name' => $contact->getFirstName() ?? null,
+                'last_name' => $contact->getLastName() ?? null,
+                'bank_bsb' => $bankBsb ?? null,
+                'bank_account_no' => $bankAccountNo ?? null,
+                'email' => $contact->getEmailAddress(),
+                'phone' => $phone ? $phone->getPhoneAreaCode() . $phone->getPhoneNumber() : null,
+                'response' => json_encode($contact),
+                'is_supplier' => $contact->getIsCustomer(),
+                'is_customer' => $contact->getIsSupplier(),
+            ]);
+        }
+    }
+}

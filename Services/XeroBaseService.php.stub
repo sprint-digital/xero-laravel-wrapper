@@ -1,0 +1,63 @@
+<?php
+
+namespace App\Services\Xero;
+
+use App\Models\XeroToken;
+use League\OAuth2\Client\Token\AccessToken;
+use Sprintdigital\XeroLaravel\OAuth2;
+use Sprintdigital\XeroLaravel\XeroApp;
+
+/**
+ * Class XeroBaseService.
+ *
+ * @property XeroApp $xero
+ * @property string $invoiceModel
+ * @property string $invoiceLineItemModel
+ */
+class XeroBaseService
+{
+    public $xero;
+    public $tenantId;
+    public $invoiceModel;
+    public $invoiceLineItemModel;
+
+    /**
+     * XeroBaseService constructor.
+     * @param null $tenantId - If null, will use the first XeroToken in the database.
+     */
+    public function __construct($tenantId = null)
+    {
+        $this->invoiceModel = config('xero-laravel.apps.invoice_model');
+        $this->invoiceLineItemModel = config('xero-laravel.apps.invoice_line_item_model');
+        $xeroToken = isset($tenantId) ? XeroToken::whereTenantId($tenantId)->first() : XeroToken::find(1);
+        $this->tenantId = $xeroToken->tenant_id;
+        $this->xero = new XeroApp($this->getAccessToken($xeroToken), $xeroToken->tenant_id);
+        $this->xero->setConfigOption('xero', 'unitdp', 4); // set the floating point precision
+    }
+
+    /**
+     * Helper function. Get AccessToken, refresh if necessary.
+     */
+    private function getAccessToken(XeroToken $xeroToken): AccessToken
+    {
+        if ($xeroToken->isExpired == true) {
+            $accessToken = new AccessToken((array) json_decode($xeroToken->xero_token_json));
+            $OAuth2 = new OAuth2();
+            $onlineXeroToken = $OAuth2->refreshAccessToken($accessToken);
+
+            $xeroToken = XeroToken::updateOrCreate(['id' => 1], [
+                'access_token' => $onlineXeroToken->getToken(),
+                'refresh_token' => $onlineXeroToken->getRefreshToken(),
+                'id_token' => $onlineXeroToken->getValues()['id_token'],
+                'token_type' => $onlineXeroToken->getValues()['token_type'],
+                'scope' => $onlineXeroToken->getValues()['scope'] ?? null,
+                'expires_at' => $onlineXeroToken->getExpires(),
+                'xero_token_json' => json_encode($onlineXeroToken),
+            ]);
+
+            return $onlineXeroToken;
+        } else {
+            return new AccessToken((array) json_decode($xeroToken->xero_token_json));
+        }
+    }
+}

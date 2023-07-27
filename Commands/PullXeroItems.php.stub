@@ -1,0 +1,62 @@
+<?php
+
+namespace App\Console\Commands;
+
+use App\Models\XeroItem;
+use App\Services\Xero\XeroBaseService;
+use Illuminate\Console\Command;
+use XeroPHP\Models\Accounting\Item;
+
+class PullXeroItems extends Command
+{
+    /**
+     * The name and signature of the console command.
+     *
+     * @var string
+     */
+    protected $signature = 'xero:pull-items';
+
+    /**
+     * The console command description.
+     *
+     * @var string
+     */
+    protected $description = 'Pull Xero Items';
+
+    /**
+     * Create a new command instance.
+     *
+     * @return void
+     */
+    public function __construct()
+    {
+        parent::__construct();
+    }
+
+    /**
+     * Execute the console command.
+     */
+    public function handle()
+    {
+        $xeroService = new XeroBaseService();
+
+        $items = $xeroService->xero->load(Item::class)->execute();
+        foreach ($items as $item) {
+            XeroItem::updateOrCreate([
+                'xero_item_id' => $item->getItemID(),
+                'xero_tenant_id' => $xeroService->tenantId,
+            ], [
+                'code' => $item->getCode(),
+                'is_sold' => $item->getIsSold(),
+                'is_purchased' => $item->getIsPurchased(),
+                'name' => $item->getName(),
+                'description' => $item->getDescription(),
+                'purchase_price' => $item->getPurchaseDetails() ? $item->getPurchaseDetails()->getUnitPrice() : null,
+                'purchase_account_code' => $item->getPurchaseDetails() ? $item->getPurchaseDetails()->getAccountCode() : null,
+                'sale_price' => $item->getSalesDetails() ? $item->getSalesDetails()->getUnitPrice() : null,
+                'sale_account_code' => $item->getSalesDetails() ? $item->getSalesDetails()->getAccountCode() : null,
+                'payload' => json_encode($item),
+            ]);
+        }
+    }
+}

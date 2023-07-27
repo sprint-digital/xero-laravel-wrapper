@@ -1,0 +1,98 @@
+<?php
+
+namespace App\Services\Xero;
+
+use App\Models\XeroContact;
+use Illuminate\Validation\ValidationException;
+use XeroPHP\Models\Accounting\Address;
+use XeroPHP\Models\Accounting\Contact;
+use XeroPHP\Models\Accounting\Phone;
+
+class XeroContactService extends XeroBaseService
+{
+    public $contact;
+    public $xeroContact;
+
+    public function __construct(object $contact)
+    {
+        parent::__construct();
+        $this->contact = $contact;
+        $this->xeroContact = XeroContact::whereXeroContactId($contact->xero_contact_id)->firstOrFail();
+    }
+
+    public function updateOrCreate(): Contact
+    {
+        try {
+            if (!isset($this->xeroContact->xero_contact_id)) {
+                $contact = new Contact($this->xero);
+            } else {
+                $contact = $this->xero->loadByGUID(Contact::class, $this->xeroContact->xero_contact_id);
+            }
+
+            $contact->setName($this->xeroContact->name);
+            $contact->setEmailAddress($this->xeroContact->email);
+
+            if ($this->xeroContact->first_name) {
+                $contact->setFirstName($this->xeroContact->first_name);
+            }
+            if ($this->xeroContact->last_name) {
+                $contact->setLastName($this->xeroContact->last_name);
+            }
+
+            if ($this->xeroContact->phone) {
+                $contact->addPhone((new Phone($this->xero))->setPhoneType(Phone::PHONE_TYPE_MOBILE)->setPhoneNumber($this->xeroContact->phone));
+            }
+
+            if ($this->xeroContact->account_no) {
+                $contact->setAccountNumber($this->xeroContact->account_no);
+            }
+
+            $contact->setTaxNumber($this->xeroContact->tax_number ?? null);
+
+            if ($this->xeroContact->bank_bsb && $this->xeroContact->bank_account_no) {
+                $contact->setBankAccountDetails("{$this->xeroContact->bank_bsb} {$this->xeroContact->bank_account_no}");
+            }
+
+            // street address
+            if ($this->xeroContact->address_line_1) {
+                $address = $this->getAddress();
+                $contact->addAddress($address);
+            }
+
+            $contact->setWebsite($this->xeroContact->website ?? null);
+
+            $response = $contact->save();
+
+            $contactId = collect($response->getElements())->first()['ContactID'];
+
+            $this->xeroContact->update([
+                'xero_contact_id' => $contactId,
+                'payload' => json_encode($response->getElements()),
+                'name' => $contact->getName(),
+                'first_name' => $contact->getFirstName() ?? null,
+                'last_name' => $contact->getLastName() ?? null,
+                'email' => $contact->getEmailAddress(),
+            ]);
+
+            return $contact;
+        } catch (\Exception $e) {
+            throw ValidationException::withMessages([
+                'xero' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    private function getAddress(): Address
+    {
+        $xeroAddress = new Address;
+        $xeroAddress->setAddressLine1($this->xeroContact->address_line_1);
+        $xeroAddress->setAddressLine2($this->xeroContact->address_line_2);
+        $xeroAddress->setPostalCode($this->xeroContact->address_postal_code);
+        $xeroAddress->setCity($this->xeroContact->address_city);
+        $xeroAddress->setRegion($this->xeroContact->address_state);
+        $xeroAddress->setCountry('Australia');
+        $xeroAddress->setAddressType(Address::ADDRESS_TYPE_STREET);
+
+        return $xeroAddress;
+    }
+}
