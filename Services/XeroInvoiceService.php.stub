@@ -1,0 +1,186 @@
+<?php
+
+namespace App\Services\Xero;
+
+use Carbon\Carbon;
+use Illuminate\Validation\ValidationException;
+use XeroPHP\Models\Accounting\Contact;
+use XeroPHP\Models\Accounting\History;
+use XeroPHP\Models\Accounting\Invoice as XeroInvoice;
+use XeroPHP\Models\Accounting\LineItem as XeroLineItem;
+
+class XeroInvoiceService extends XeroBaseService
+{
+    protected object $invoice;
+
+    public function __construct($invoice)
+    {
+        parent::__construct();
+        $this->invoice = $invoice;
+    }
+
+    public function createOrUpdate()
+    {
+        return isset($this->invoice->xero_invoice_id) ? $this->update() : $this->create();
+    }
+
+    public function create(): XeroInvoice
+    {
+        try {
+            $xeroInvoice = new XeroInvoice($this->xero);
+
+            $xeroInvoice = $xeroInvoice
+                ->setInvoiceNumber($this->invoice->invoice_no)
+                ->setReference($this->invoice->name ?? null)
+                ->setType($this->invoice->xero_invoice_type ?? 'ACCREC')
+                ->setDate(Carbon::parse($this->invoice->issued_at))
+                ->setDueDate(Carbon::parse($this->invoice->due_at))
+                ->setCurrencyCode('AUD')
+                ->setLineAmountType(XeroLineItem::TYPE_EXCLUSIVE)
+                ->setStatus(XeroInvoice::INVOICE_STATUS_DRAFT)
+                ->setContact($this->xero->loadByGUID(Contact::class, '41da50d2-62e8-4c64-9026-633bfac4499a'));
+
+            foreach ($this->invoice->invoice_line_items as $lineItem) {
+                $xeroInvoice->addLineItem(
+                    $this->createLineItem($lineItem)
+                );
+            }
+
+            $response = $xeroInvoice->save();
+            $element = collect($response->getElements())->first();
+
+            if (isset($this->invoice->description)) {
+                $history = new History($this->xero);
+                $history->setDetails($this->invoice->description);
+                $xeroInvoice->addHistory($history);
+            }
+
+            $this->invoice->updateQuietly(['xero_invoice_id' => $element['InvoiceID']]);
+
+            // Update line item xero_line_item_id
+            foreach ($element['LineItems'] as $responseLineItem) {
+                $this->invoiceLineItemModel::whereInvoiceId($this->invoice->id)
+                    ->whereUnitAmount(isset($responseLineItem['UnitAmount']) ? abs($responseLineItem['UnitAmount']) : null)
+                    ->whereQuantity($responseLineItem['Quantity'] ?? null)
+                    ->whereDescription($responseLineItem['Description'] ?? null)
+                    ->whereNull('xero_line_item_id')
+                    ->limit(1)
+                    ->update([
+                        'xero_line_item_id' => $responseLineItem['LineItemID'],
+                    ]);
+            }
+
+            return $xeroInvoice;
+        } catch (\Exception $e) {
+            throw ValidationException::withMessages([
+                'xero' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    public function update(): XeroInvoice
+    {
+        try {
+            $xeroInvoice = $this->get();
+
+            $xeroInvoice = $xeroInvoice
+                ->setInvoiceNumber($this->invoice->invoice_no)
+                ->setReference($this->invoice->reference ?? null)
+                ->setType($this->invoice->xero_invoice_type ?? 'ACCREC')
+                ->setDate(Carbon::parse($this->invoice->issued_at))
+                ->setDueDate(Carbon::parse($this->invoice->due_at))
+                ->setCurrencyCode('AUD')
+                ->setLineAmountType(XeroLineItem::TYPE_EXCLUSIVE)
+                ->setStatus(isset($this->invoice->invoice_status) ? $this->invoice->invoice_status->xero_name : XeroInvoice::INVOICE_STATUS_DRAFT)
+                ->setContact($this->xero->loadByGUID(Contact::class, '41da50d2-62e8-4c64-9026-633bfac4499a'));
+
+            $remoteXeroLineItemIds = collect($xeroInvoice->getLineItems())->pluck('LineItemID')->toArray();
+            $localXeroLineItemIds = collect($this->invoice->invoice_line_items)->pluck('xero_line_item_id')->toArray();
+
+            // Update or delete line items
+            foreach ($xeroInvoice->getLineItems() as $key => $remoteXeroLineItem) {
+                if (in_array($remoteXeroLineItem->LineItemID, $localXeroLineItemIds)) {
+                    $lineItem = $this->invoiceLineItemModel::whereXeroLineItemId($remoteXeroLineItem->LineItemID)->first();
+                    $remoteXeroLineItem->setItemCode($lineItem->xero_item_code ?? 'DevD');
+                    $remoteXeroLineItem->setDescription($lineItem->description);
+                    $remoteXeroLineItem->setQuantity($lineItem->quantity);
+                    $remoteXeroLineItem->setUnitAmount($lineItem->unit_amount);
+                    $remoteXeroLineItem->setLineAmount(null); // Xero will auto cal this
+                    $remoteXeroLineItem->setTaxAmount($lineItem->tax_amount);
+                    $remoteXeroLineItem->setTaxType($lineItem->tax_type ?? 'OUTPUT');
+                } else {
+                    $xeroInvoice->getLineItems()->removeAt($key);
+                }
+            }
+
+            // Create new line items
+            foreach ($this->invoice->invoice_line_items()->whereNull('xero_line_item_id')->get() as $localLineItem) {
+                $xeroInvoice->addLineItem(
+                    $this->createLineItem($localLineItem)
+                );
+            }
+
+            $response = $xeroInvoice->save();
+            $element = collect($response->getElements())->first();
+
+            // Update invoice notes
+            if (isset($this->invoice->xero_notes)) {
+                $history = new History($this->xero);
+                $history->setDetails($this->invoice->xero_notes);
+                $xeroInvoice->addHistory($history);
+            }
+
+            // Update line item xero_line_item_id
+            foreach ($element['LineItems'] as $responseLineItem) {
+                $this->invoiceLineItemModel::whereInvoiceId($this->invoice->id)
+                    ->whereUnitAmount(isset($responseLineItem['UnitAmount']) ? abs($responseLineItem['UnitAmount']) : null) // This is negative
+                    ->whereQuantity($responseLineItem['Quantity'] ?? null)
+                    ->whereDescription($responseLineItem['Description'] ?? null)
+                    ->whereNull('xero_line_item_id')
+                    ->limit(1)
+                    ->update([
+                        'xero_line_item_id' => $responseLineItem['LineItemID'],
+                    ]);
+            }
+
+            return $xeroInvoice;
+        } catch (\Exception $e) {
+            throw ValidationException::withMessages([
+                'xero' => $e->getMessage(),
+            ]);
+        }
+
+        return $xeroInvoice;
+    }
+
+    /**
+     * Get Xero Invoice.
+     */
+    public function get(): XeroInvoice
+    {
+        return $this->xero->loadByGUID(XeroInvoice::class, $this->invoice->xero_invoice_id);
+    }
+
+    /**
+     * Helper function to create a Xero Line Item.
+     */
+    public function createLineItem($lineItem): XeroLineItem
+    {
+        $xeroLineItem = new XeroLineItem($this->xero);
+
+        if ($lineItem->xero_line_item_id) {
+            $xeroLineItem->setLineItemID($lineItem->xero_line_item_id);
+        }
+
+        $xeroLineItem->setItemCode($lineItem->xero_item_code ?? 'DevD');
+        $xeroLineItem->setDescription($lineItem->name);
+        $xeroLineItem->setQuantity($lineItem->quantity);
+        $xeroLineItem->setUnitAmount($lineItem->unit_amount);
+        $xeroLineItem->setTaxAmount($lineItem->tax_amount);
+        $xeroLineItem->setTaxType($lineItem->tax_type ?? 'OUTPUT');
+        $xeroLineItem->setLineAmount(null); // Xero will auto cal this
+        // isset($lineItem->quantity) ? $xeroLineItem->setAccountCode('200') : $xeroLineItem->setAccountCode(null);
+
+        return $xeroLineItem;
+    }
+}
