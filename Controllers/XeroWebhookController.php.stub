@@ -1,0 +1,38 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Services\Xero\XeroBaseService;
+use Illuminate\Http\Request;
+use Illuminate\Http\Response;
+use XeroPHP\Webhook;
+
+class XeroWebhookController extends Controller
+{
+    public function store(Request $request): Response
+    {
+        $xeroService = new XeroBaseService();
+        $xeroService->xero->setConfig(['webhook' => ['signing_key' => config('xero-laravel.apps.default.webhook_key')]]);
+
+        try {
+            $webhook = new Webhook($xeroService->xero, $request->getContent());
+
+            $isValid = $webhook->validate($request->headers->get('x-xero-signature'));
+            if ($isValid) {
+                foreach ($webhook->getEvents() as $event) {
+                    if ($event->getEventCategory() == 'INVOICE') {
+                        info($event);
+                    } elseif ($event->getEventCategory() == 'CONTACT') {
+                        info($event);
+                    }
+                }
+
+                return response(null, 200);
+            }
+        } catch (\Throwable $th) {
+            return response(null, 401);
+        }
+
+        return response(null, 401);
+    }
+}

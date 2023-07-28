@@ -1,0 +1,81 @@
+<?php
+
+namespace App\Jobs;
+
+use App\Models\Invoice;
+use App\Models\InvoiceLineItem;
+use App\Models\InvoiceStatus;
+use App\Services\Xero\XeroBaseService;
+use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Foundation\Bus\Dispatchable;
+use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Queue\SerializesModels;
+use XeroPHP\Models\Accounting\Invoice as AccountingInvoice;
+
+class XeroWebhookInvoice implements ShouldQueue
+{
+    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+
+    protected $xeroInvoiceId;
+
+    /**
+     * Create a new job instance.
+     *
+     * @return void
+     */
+    public function __construct(string $xeroInvoiceId)
+    {
+        $this->xeroInvoiceId = $xeroInvoiceId;
+    }
+
+    /**
+     * Execute the job.
+     */
+    public function handle(): void
+    {
+        $xeroService = new XeroBaseService();
+        $xero = $xeroService->xero;
+
+        $xeroInvoice = $xero->loadByGUID(AccountingInvoice::class, $this->xeroInvoiceId);
+        $invoice = Invoice::where('xero_invoice_id', $xeroInvoice->InvoiceID)->first();
+        $invoiceStatus = InvoiceStatus::whereXeroName($xeroInvoice->getStatus())->first();
+
+        if ($invoice) {
+            $invoice->updateQuietly([
+                'invoice_no'            => $invoice->invoice_no ?? $xeroInvoice->getInvoiceNumber(),
+                'invoice_status'        => $xeroInvoice->getStatus() ?? null,
+                'paid_at'               => $xeroInvoice->getFullyPaidOnDate() ?? null,
+                'payload'               => json_encode($xeroInvoice),
+                'xero_status_id'        => $invoiceStatus ? $invoiceStatus->id : null,
+                'issued_at'             => $xeroInvoice->getDate() ?? null,
+                'due_at'                => $xeroInvoice->getDueDate() ?? null,
+                'currency'              => $xeroInvoice->getCurrencyCode() ?? null,
+                'sub_total'             => $xeroInvoice->getSubTotal() ?? null,
+                'total_tax'             => $xeroInvoice->getTotalTax() ?? null,
+                'total'                 => $xeroInvoice->getTotal() ?? null,
+            ]);
+
+            foreach ($xeroInvoice->getLineItems() as $xeroLineItem) {
+                $lineItem = InvoiceLineItem::whereXeroLineItemId($xeroLineItem['LineItemID'])->first();
+                if ($lineItem) {
+                    $lineItem->update([
+                        'quantity'              => $xeroLineItem['Quantity'] ? $xeroLineItem['Quantity'] : null,
+                        'unit_amount'           => $xeroLineItem['UnitAmount'] ? $this->setPositive($xeroLineItem['UnitAmount']) : null,
+                        'tax_amount'            => $xeroLineItem['TaxAmount'] ? $this->setPositive($xeroLineItem['TaxAmount']) : null,
+                        'line_amount'           => $xeroLineItem['LineAmount'] ? $this->setPositive($xeroLineItem['LineAmount']) : null,
+                        'description'           => $xeroLineItem['Description'],
+                        'xero_item_code'        => $xeroLineItem['ItemCode'] ?? null,
+                    ]);
+                }
+            }
+        } else {
+            // invoice doesn't exist in system.
+        }
+    }
+
+    public function setPositive($value)
+    {
+        return $value > 0 ? $value : $value * -1;
+    }
+}

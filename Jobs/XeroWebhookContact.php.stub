@@ -1,0 +1,91 @@
+<?php
+
+namespace App\Jobs;
+
+use App\Models\Customer;
+use App\Models\XeroContact;
+use App\Services\Xero\XeroBaseService;
+use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Foundation\Bus\Dispatchable;
+use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Queue\SerializesModels;
+use XeroPHP\Models\Accounting\Contact;
+use XeroPHP\Models\Accounting\Phone;
+
+class XeroWebhookContact implements ShouldQueue
+{
+    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+
+    protected $xeroContactId;
+
+    /**
+     * Create a new job instance.
+     *
+     * @return void
+     */
+    public function __construct(string $xeroContactId)
+    {
+        $this->xeroContactId = $xeroContactId;
+    }
+
+    /**
+     * Execute the job.
+     */
+    public function handle(): void
+    {
+        $xeroService = new XeroBaseService();
+        $xero = $xeroService->xero;
+        $remoteXeroContact = $xero->loadByGUID(Contact::class, $this->xeroContactId);
+        $xeroContact = XeroContact::where('xero_contact_id', $this->xeroContactId)->first();
+
+        if ($remoteXeroContact->getContactStatus() == 'ARCHIVED') {
+            // delete contact if voided
+            if ($xeroContact) {
+                $xeroContact->delete();
+            }
+        } else {
+            // assuming this is only for update status
+            if ($xeroContact) {
+                $phone = collect($remoteXeroContact->getPhones())->where('PhoneType', Phone::PHONE_TYPE_MOBILE)->first();
+                $bankAccountDetails = $remoteXeroContact->getBankAccountDetails();
+
+                if (isset($bankAccountDetails)) {
+                    if (strpos($bankAccountDetails, ' ') !== false) {
+                        $bankAccountDetails = explode(' ', $bankAccountDetails);
+                        $bankBsb = $bankAccountDetails[0] ?? null;
+                        $bankAccountNo = $bankAccountDetails[1] ?? null;
+                    } else {
+                        $bankBsb = substr($bankAccountDetails, 0, 6);
+                        $bankAccountNo = substr($bankAccountDetails, 6);
+                    }
+                }
+
+                XeroContact::updateOrCreate([
+                    'xero_contact_id' => $remoteXeroContact->getContactID(),
+                ], [
+                    'name'  => $remoteXeroContact->getName(),
+                    'first_name' => $remoteXeroContact->getFirstName() ?? null,
+                    'last_name' => $remoteXeroContact->getLastName() ?? null,
+                    'bank_bsb' => $bankBsb ?? null,
+                    'bank_account_no' => $bankAccountNo ?? null,
+                    'email' => $remoteXeroContact->getEmailAddress(),
+                    'website' => $remoteXeroContact->getWebsite(),
+                    'phone' => $phone ? $phone->getPhoneAreaCode() . $phone->getPhoneNumber() : null,
+                    'response' => json_encode($remoteXeroContact),
+                    'is_supplier' => $remoteXeroContact->getIsCustomer(),
+                    'is_customer' => $remoteXeroContact->getIsSupplier(),
+                ]);
+
+                Customer::where([
+                    'xero_contact_id' => $remoteXeroContact->getContactID(),
+                ])->updateQuietly([
+                    'trading_name' => $remoteXeroContact->getName(),
+                    'billing_email' => $remoteXeroContact->getEmailAddress(),
+                ]);
+            } else {
+                // No longer adds contacts if not already in system? or do we? TBC
+            }
+        }
+    }
+}

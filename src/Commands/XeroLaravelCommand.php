@@ -85,6 +85,11 @@ class XeroLaravelCommand extends Command
         } else {
             copy(__DIR__ . '/../../Controllers/XeroController.php.stub', app_path('Http/Controllers/XeroController.php')) ? $this->comment('XeroController.php controller file created') : $this->comment('XeroController.php controller file not created');
         }
+        if (file_exists(app_path('Http/Controllers/XeroWebhookController.php'))) {
+            $this->comment('XeroWebhookController.php controller file already exists');
+        } else {
+            copy(__DIR__ . '/../../Controllers/XeroWebhookController.php.stub', app_path('Http/Controllers/XeroWebhookController.php')) ? $this->comment('XeroWebhookController.php controller file created') : $this->comment('XeroWebhookController.php controller file not created');
+        }
         // End of controllers
 
         // Start of Jobs
@@ -92,6 +97,16 @@ class XeroLaravelCommand extends Command
             $this->comment('SendXeroInvoice.php job file already exists');
         } else {
             copy(__DIR__ . '/../../Jobs/SendXeroInvoice.php.stub', app_path('Jobs/SendXeroInvoice.php')) ? $this->comment('SendXeroInvoice.php job file created') : $this->comment('SendXeroInvoice.php job file not created');
+        }
+        if (file_exists(app_path('Jobs/XeroWebhookContact.php'))) {
+            $this->comment('XeroWebhookContact.php job file already exists');
+        } else {
+            copy(__DIR__ . '/../../Jobs/XeroWebhookContact.php.stub', app_path('Jobs/XeroWebhookContact.php')) ? $this->comment('XeroWebhookContact.php job file created') : $this->comment('XeroWebhookContact.php job file not created');
+        }
+        if (file_exists(app_path('Jobs/XeroWebhookInvoice.php'))) {
+            $this->comment('XeroWebhookInvoice.php job file already exists');
+        } else {
+            copy(__DIR__ . '/../../Jobs/XeroWebhookInvoice.php.stub', app_path('Jobs/XeroWebhookInvoice.php')) ? $this->comment('XeroWebhookInvoice.php job file created') : $this->comment('XeroWebhookInvoice.php job file not created');
         }
         // End of Jobs
 
