@@ -39,6 +39,24 @@ class XeroLaravelCommand extends Command
         } else {
             copy(__DIR__ . '/../../Models/XeroItem.php.stub', app_path('Models/XeroItem.php')) ? $this->comment('XeroItem.php model file created') : $this->comment('XeroItem.php model file not created');
         }
+
+        if (file_exists(app_path('Models/Invoice.php'))) {
+            $this->comment('Invoice.php model file already exists');
+        } else {
+            copy(__DIR__ . '/../../Models/Invoice.php.stub', app_path('Models/Invoice.php')) ? $this->comment('Invoice.php model file created') : $this->comment('Invoice.php model file not created');
+        }
+
+        if (file_exists(app_path('Models/InvoiceLineItem.php'))) {
+            $this->comment('InvoiceLineItem.php model file already exists');
+        } else {
+            copy(__DIR__ . '/../../Models/InvoiceLineItem.php.stub', app_path('Models/InvoiceLineItem.php')) ? $this->comment('InvoiceLineItem.php model file created') : $this->comment('InvoiceLineItem.php model file not created');
+        }
+
+        if (file_exists(app_path('Models/InvoiceStatus.php'))) {
+            $this->comment('InvoiceStatus.php model file already exists');
+        } else {
+            copy(__DIR__ . '/../../Models/InvoiceStatus.php.stub', app_path('Models/InvoiceStatus.php')) ? $this->comment('InvoiceStatus.php model file created') : $this->comment('InvoiceStatus.php model file not created');
+        }
         // End of models
 
         // Start of services

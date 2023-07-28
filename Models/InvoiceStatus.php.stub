@@ -1,0 +1,49 @@
+<?php
+
+namespace App\Models;
+
+// use App\Models\Traits\Attributes\InvoiceStatusAttribute;
+// use App\Models\Traits\Relationships\InvoiceStatusRelationship;
+// use App\Models\Traits\Scopes\InvoiceStatusScope;
+use Dyrynda\Database\Support\CascadeSoftDeletes;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
+use Spatie\MediaLibrary\HasMedia;
+use Spatie\MediaLibrary\InteractsWithMedia;
+
+class InvoiceStatus extends Model implements HasMedia
+{
+    use HasFactory, SoftDeletes, LogsActivity, InteractsWithMedia, CascadeSoftDeletes;
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logOnly([
+                'id',
+            ])
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs();
+    }
+
+    protected $cascadeDeletes = [];
+
+    protected $fillable = [
+        'name',
+        'xero_name',
+    ];
+
+    public $searchables = [
+        'name',
+    ];
+
+    protected $casts = [
+        // 'is_' => 'boolean',
+    ];
+
+    protected $appends = [
+        // '',
+    ];
+}

@@ -21,6 +21,13 @@ php artisan migrate
 ```
 
 
+If `sprint-digital/sprint-digital/boilerplate-crud-generator` is installed, you can generate the CRUD for the following models:
+
+```
+php artisan make:crud invoices
+php artisan make:crud invoice_line_items
+```
+
 ## Setup
 
 If you only intend to use one Xero app, the standard configuration 

@@ -22,6 +22,9 @@ class XeroLaravelServiceProvider extends PackageServiceProvider
             ->hasMigration('create_xero_tokens_table')
             ->hasMigration('create_xero_contacts_table')
             ->hasMigration('create_xero_items_table')
+            ->hasMigration('create_invoice_statuses_table')
+            ->hasMigration('create_invoices_table')
+            ->hasMigration('create_invoice_line_items_table')
             ->hasCommand(XeroLaravelCommand::class);
     }
 }

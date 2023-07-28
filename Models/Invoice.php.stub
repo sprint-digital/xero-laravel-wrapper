@@ -1,0 +1,81 @@
+<?php
+
+namespace App\Models;
+
+use App\Models\InvoiceLineItem;
+use App\Models\InvoiceStatus;
+// use App\Models\Traits\Attributes\InvoiceAttribute;
+// use App\Models\Traits\Relationships\InvoiceRelationship;
+// use App\Models\Traits\Scopes\InvoiceScope;
+use Dyrynda\Database\Support\CascadeSoftDeletes;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
+use Spatie\MediaLibrary\HasMedia;
+use Spatie\MediaLibrary\InteractsWithMedia;
+
+class Invoice extends Model implements HasMedia
+{
+    use HasFactory, SoftDeletes, LogsActivity, InteractsWithMedia, CascadeSoftDeletes;
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logOnly([
+                'id',
+            ])
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs();
+    }
+
+    protected $cascadeDeletes = [];
+
+    protected $fillable = [
+        'name',
+        'invoice_no',
+        'description',
+        'sub_total',
+        'total_tax',
+        'total',
+        'due_at',
+        'paid_at',
+        'issued_at',
+        'xero_invoice_type', // ACCPAY or ACCREC https://developer.xero.com/documentation/api/accounting/types#invoices
+        'xero_invoice_id',
+    ];
+
+    public $searchables = [
+        'name',
+        'invoice_no',
+    ];
+
+    protected $casts = [
+        // 'is_' => 'boolean',
+    ];
+
+    protected $dates = [
+        'due_at', 'issued_at', 'paid_at',
+    ];
+
+    protected $appends = [
+        // '',
+    ];
+
+    /**
+     * @return mixed
+     */
+    public function invoice_line_items()
+    {
+        return $this->hasMany(InvoiceLineItem::class);
+    }
+
+    /**
+     * @return mixed
+     */
+    public function invoice_status()
+    {
+        return $this->belongsTo(InvoiceStatus::class);
+    }
+}

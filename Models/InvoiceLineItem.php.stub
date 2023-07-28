@@ -1,0 +1,65 @@
+<?php
+
+namespace App\Models;
+
+// use App\Models\Invoice;
+// use App\Models\Traits\Attributes\InvoiceLineItemAttribute;
+// use App\Models\Traits\Relationships\InvoiceLineItemRelationship;
+// use App\Models\Traits\Scopes\InvoiceLineItemScope;
+use Dyrynda\Database\Support\CascadeSoftDeletes;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
+use Spatie\MediaLibrary\HasMedia;
+use Spatie\MediaLibrary\InteractsWithMedia;
+
+class InvoiceLineItem extends Model implements HasMedia
+{
+    use HasFactory, SoftDeletes, LogsActivity, InteractsWithMedia, CascadeSoftDeletes;
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logOnly([
+                'id',
+            ])
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs();
+    }
+
+    protected $cascadeDeletes = [];
+
+    protected $fillable = [
+        'name',
+        'description',
+        'quantity',
+        'unit_amount',
+        'tax_amount',
+        'line_amount',
+        'invoice_id',
+        'xero_line_item_id',
+        'xero_item_code',
+    ];
+
+    public $searchables = [
+        'name',
+    ];
+
+    protected $casts = [
+        // 'is_' => 'boolean',
+    ];
+
+    protected $appends = [
+        // '',
+    ];
+
+    /**
+     * @return mixed
+     */
+    public function invoice()
+    {
+        return $this->belongsTo(Invoice::class);
+    }
+}
