@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\XeroWebhookContact;
+use App\Jobs\XeroWebhookInvoice;
 use App\Services\Xero\XeroBaseService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -21,9 +23,9 @@ class XeroWebhookController extends Controller
             if ($isValid) {
                 foreach ($webhook->getEvents() as $event) {
                     if ($event->getEventCategory() == 'INVOICE') {
-                        info($event);
+                        dispatch(new XeroWebhookInvoice($event->getResourceId()));
                     } elseif ($event->getEventCategory() == 'CONTACT') {
-                        info($event);
+                        dispatch(new XeroWebhookContact($event->getResourceId()));
                     }
                 }
 

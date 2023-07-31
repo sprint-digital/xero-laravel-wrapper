@@ -76,13 +76,6 @@ class XeroWebhookContact implements ShouldQueue
                     'is_supplier' => $remoteXeroContact->getIsCustomer(),
                     'is_customer' => $remoteXeroContact->getIsSupplier(),
                 ]);
-
-                Customer::where([
-                    'xero_contact_id' => $remoteXeroContact->getContactID(),
-                ])->updateQuietly([
-                    'trading_name' => $remoteXeroContact->getName(),
-                    'billing_email' => $remoteXeroContact->getEmailAddress(),
-                ]);
             } else {
                 // No longer adds contacts if not already in system? or do we? TBC
             }
