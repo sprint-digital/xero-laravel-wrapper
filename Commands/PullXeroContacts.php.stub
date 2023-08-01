@@ -68,7 +68,7 @@ class PullXeroContacts extends Command
                 'bank_account_no' => $bankAccountNo ?? null,
                 'email' => $contact->getEmailAddress(),
                 'phone' => $phone ? $phone->getPhoneAreaCode() . $phone->getPhoneNumber() : null,
-                'response' => json_encode($contact),
+                'payload' => json_encode($contact),
                 'is_supplier' => $contact->getIsCustomer(),
                 'is_customer' => $contact->getIsSupplier(),
             ]);
